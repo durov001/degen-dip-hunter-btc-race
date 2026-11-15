@@ -6,6 +6,11 @@
 // (Dev rank 1 is +$61.60; the $4 gap is fill-delay timing, not strategy:
 // the bot catches both tradeable rebounds on the window.)
 //
+// Protocol: the harness sends one hello message (capital, symbols, caps,
+// fees) and then one batch per bar (1,440 bars, one minute each). The bot
+// answers every batch with its orders for that bar; orders fill at the
+// next bar's open. The shim owns the wire; this file owns the strategy.
+//
 // Rules (all BigInt math on the protocol's units, deterministic):
 // - Entry: the close dips >= 3.3% below the highest close of the last 120
 //   bars. Buy FULL SIZE (all cash) on the dip bar itself, no confirmation
@@ -139,6 +144,8 @@ await runBars({
         return [];
       }
       // --- fallback: no trade yet this late -> buy now ---
+      // The guardrail needs at least 1 trade to rank above entries that
+      // never traded; a flat window with no dip would otherwise fail it.
       if (tradesMade === 0 && batchesSeen >= FALLBACK_BATCH && state.cash >= MIN_NOTIONAL) {
         tradesMade += 1;
         fallbackPosition = true;
